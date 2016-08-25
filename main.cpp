@@ -35,13 +35,15 @@ double zNear = 1.0, zFar = 100.0;				// clipping
 double g_fov = 45.0;
 Vector3d g_center;
 double g_sdepth;
-Mesh mesh;										// our mesh, this is for demonstration purpose, remove when you code
+Mesh mesh;	// our mesh, this is for demonstration purpose, remove when you code
+#define sample_segment 21
 
 vector<Vector2f> strokePoints;					// 2d stroke points
 vector<Vector2f> strokepts_sampled;
 vector<Vector2f> strokepts_sam_saved;
 Teddy teddy;
 bool stroke_flag = 0;
+bool intersect_flag = false;
 
 
 // editing mode
@@ -452,64 +454,89 @@ void DrawStrokePoints_Sample()
 	}
 	for (int i = 1; i < strokePoints.size() ; ++i)
 	{
+		if (intersect_flag)break;
 		//printf("\n strokePoints[i]:%f,%f", strokePoints[i].X(), strokePoints[i].Y());
-		if (distanceofstrokePoints(i, strokePoints[i], v1) >= 28.0)
+		if (distanceofstrokePoints(i, strokePoints[i], v1) >= sample_segment)
 		{
 			glBegin(GL_LINES);
 			Vector2f& v2 = strokePoints[i];
 			glVertex2f(v1.X(), v1.Y());
 			glVertex2f(v2.X(), v2.Y());
 			glEnd();
+			
+
 			v1 = strokePoints[i];
-			//把采样的点（相距28px的点）存进strokepts_sampled
-			if (strokepts_sampled.back().X() != v1.X() && strokepts_sampled.back().Y() != v1.Y() && strokepts_sampled.size() <= j)
+			//把采样的点存进strokepts_sampled
+			if (strokepts_sampled.back().X() != v1.X() && strokepts_sampled.back().Y() != v1.Y() && strokepts_sampled.size()-1 <= j)
 			{
 				strokepts_sampled.push_back(v1);
 			}
-			
+
 			j++;
+			//cout << "v1= " << v1 << ", v2= " << v2 << endl;
+			//检查相交
+			for (int k = 1; k + 2 < strokepts_sampled.size() ; k++)
+			{
+				cout << "k=" << k << "  strokepts_sampled.size()=" << strokepts_sampled.size() << endl;
+				if (segment_intersection(strokepts_sampled[strokepts_sampled.size()-2], strokepts_sampled[strokepts_sampled.size()-1], strokepts_sampled[k], strokepts_sampled[k - 1]))
+				{
+					intersect_flag = true;
+					cout << "find Intersecting segments!!! draw again! (segment["<< strokepts_sampled.size() - 2<<", "<< strokepts_sampled.size() - 1<<"] and segment[" << k << ", " << k - 1 << "])" << endl;
+					break;
+				}
+
+			}
 		}
 		
 	}
-	for (int i = 1; i < strokepts_sampled.size(); ++i)
+	/*for (int i = 0; i < strokepts_sampled.size(); ++i)
 	{
-		//printf("\n strokepts_sampled[%d]:%f,%f", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
-	}
+		printf("strokepts_sampled[%d]:%f,%f \n ", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
+	}*/
 	if (leftUp)
 	{
+		float d= distanceofstrokePoints(strokepts_sampled.size() - 1, strokePoints[strokePoints.size() - 1], strokepts_sampled[strokepts_sampled.size()-1]);
+		if (d >= 10.0)
+		{
 		strokepts_sampled.push_back(strokePoints[strokePoints.size() - 1]);
 		glBegin(GL_LINES);
 		glVertex2f(v1.X(), v1.Y());
 		glVertex2f(strokepts_sampled.back().X(), strokepts_sampled.back().Y());
 		glEnd();
-		if (distanceofstrokePoints(strokePoints.size() - 1, strokePoints[strokePoints.size() - 1], strokePoints[0]) <= 21.0)
+		}
+		d= distanceofstrokePoints(strokepts_sampled.size() - 1, strokepts_sampled[strokepts_sampled.size() - 1], strokepts_sampled[0]);
+		if (d <= sample_segment)
 		{
+
 			glBegin(GL_LINES);
 			glVertex2f(strokePoints[strokePoints.size() - 1].X(), strokePoints[strokePoints.size() - 1].Y());
 			glVertex2f(strokePoints[0].X(), strokePoints[0].Y());
 			glEnd();
 			//第一次画圈或是上次画圈不合格，即strokepts_sam_saved未使用：把strokepts_sampled赋给strokepts_sam_saved
-			if (!stroke_flag)
+			if (!stroke_flag && !intersect_flag)
 			{
 				strokepts_sam_saved.clear();
 				strokepts_sam_saved = strokepts_sampled;
 				stroke_flag = 1;
+
 			}
-			/*//printf "strokepts_sampled" and "strokepts_sam_saved"
-			for (int i = 1; i < strokepts_sampled.size(); ++i)
+			//printf "strokepts_sampled" and "strokepts_sam_saved"
+			/*
+			for (int i = 0; i < strokepts_sampled.size(); ++i)
 			{
 				printf("\n strokepts_sampled[%d]:%f,%f", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
-			}
-			for (int i = 1; i < strokepts_sam_saved.size(); ++i)
+			}*/
+			for (int i = 0; i < strokepts_sam_saved.size(); ++i)
 			{
 				printf("\n strokepts_sam_saved[%d]:%f,%f", i, strokepts_sam_saved[i].X(), strokepts_sam_saved[i].Y());
-			}*/
-			//检查相交
+			}
+			
 		}
 		else
 		{
 			printf("\n error!!!\n Please draw again to make the distance between the last point and the first point closer (less than 20px)!\n");
 		}
+		
 	}
 	
 
@@ -572,8 +599,7 @@ void MouseFunc(int button, int state, int x, int y)
 	{
 		strokePoints.clear();
 		strokepts_sampled.clear();
-
-		//strokepts_sampled.push_back(Vector2f(0.0,0.0));
+		//intersect_flag = false;
 	}
 
 	glutPostRedisplay();
