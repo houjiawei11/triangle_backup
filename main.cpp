@@ -10,7 +10,7 @@ using namespace std;
 #define REAL double
 #define ANSI_DECLARATORS
 #include "triangle.h"
-
+#include <hjw_function_triangle.h>
 
 // the way the mesh is rendered
 enum EnumDisplayMode 
@@ -39,7 +39,9 @@ Mesh mesh;										// our mesh, this is for demonstration purpose, remove when 
 
 vector<Vector2f> strokePoints;					// 2d stroke points
 vector<Vector2f> strokepts_sampled;
+vector<Vector2f> strokepts_sam_saved;
 Teddy teddy;
+bool stroke_flag = 0;
 
 
 // editing mode
@@ -423,21 +425,6 @@ void DrawStrokePoints()
 	glPopMatrix();
 }
 
-float distanceofstrokePoints(int i,Vector2f& vi, Vector2f& v1)
-{
-	//printf("\n v1: %f, %f", v1.X(), v1.Y());
-	if (i < 1)
-	{
-		printf("the first point/n");
-		return 1.0;
-	}
-	float x_distance = vi.X() - v1.X();
-	float y_distance = vi.Y() - v1.Y();
-	float distance = x_distance*x_distance + y_distance*y_distance;
-	distance = sqrt(distance);
-	return distance;
-}
-
 void DrawStrokePoints_Sample()
 {
 	if (strokePoints.size() < 2) return;
@@ -457,38 +444,37 @@ void DrawStrokePoints_Sample()
 	glDisable(GL_DEPTH_TEST);
 	glColor3f(0.2f, 0.8f, 0.0f);
 	Vector2f v1 = strokePoints[0];
-	
-	//if (strokePoints.size() == 1)
-	//{
-	//	v1 = strokePoints[0];
-
-	//}
-	//else
-	//{
-	//	v1 = strokepts_sampled.back();
-	//}
 	int j = 0;
 	
+	if (strokepts_sampled.size() == 0)
+	{
+		strokepts_sampled.push_back(v1);
+	}
 	for (int i = 1; i < strokePoints.size() ; ++i)
 	{
 		//printf("\n strokePoints[i]:%f,%f", strokePoints[i].X(), strokePoints[i].Y());
-			
 		if (distanceofstrokePoints(i, strokePoints[i], v1) >= 28.0)
 		{
 			glBegin(GL_LINES);
 			Vector2f& v2 = strokePoints[i];
 			glVertex2f(v1.X(), v1.Y());
 			glVertex2f(v2.X(), v2.Y());
-			v1 = strokePoints[i];
-			strokepts_sampled.push_back(strokePoints[i]);
-			
-			//printf("\n strokepts_sampled[%d]:%f,%f",j, strokepts_sampled.back().X(), strokepts_sampled.back().Y());
-			j++;
 			glEnd();
+			v1 = strokePoints[i];
+			//把采样的点（相距28px的点）存进strokepts_sampled
+			if (strokepts_sampled.back().X() != v1.X() && strokepts_sampled.back().Y() != v1.Y() && strokepts_sampled.size() <= j)
+			{
+				strokepts_sampled.push_back(v1);
+			}
+			
+			j++;
 		}
 		
 	}
-
+	for (int i = 1; i < strokepts_sampled.size(); ++i)
+	{
+		//printf("\n strokepts_sampled[%d]:%f,%f", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
+	}
 	if (leftUp)
 	{
 		strokepts_sampled.push_back(strokePoints[strokePoints.size() - 1]);
@@ -502,11 +488,27 @@ void DrawStrokePoints_Sample()
 			glVertex2f(strokePoints[strokePoints.size() - 1].X(), strokePoints[strokePoints.size() - 1].Y());
 			glVertex2f(strokePoints[0].X(), strokePoints[0].Y());
 			glEnd();
+			//第一次画圈或是上次画圈不合格，即strokepts_sam_saved未使用：把strokepts_sampled赋给strokepts_sam_saved
+			if (!stroke_flag)
+			{
+				strokepts_sam_saved.clear();
+				strokepts_sam_saved = strokepts_sampled;
+				stroke_flag = 1;
+			}
+			/*//printf "strokepts_sampled" and "strokepts_sam_saved"
+			for (int i = 1; i < strokepts_sampled.size(); ++i)
+			{
+				printf("\n strokepts_sampled[%d]:%f,%f", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
+			}
+			for (int i = 1; i < strokepts_sam_saved.size(); ++i)
+			{
+				printf("\n strokepts_sam_saved[%d]:%f,%f", i, strokepts_sam_saved[i].X(), strokepts_sam_saved[i].Y());
+			}*/
+			//检查相交
 		}
 		else
 		{
 			printf("\n error!!!\n Please draw again to make the distance between the last point and the first point closer (less than 20px)!\n");
-
 		}
 	}
 	
@@ -570,6 +572,8 @@ void MouseFunc(int button, int state, int x, int y)
 	{
 		strokePoints.clear();
 		strokepts_sampled.clear();
+
+		//strokepts_sampled.push_back(Vector2f(0.0,0.0));
 	}
 
 	glutPostRedisplay();
