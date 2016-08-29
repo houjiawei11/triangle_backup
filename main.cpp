@@ -12,6 +12,8 @@ using namespace std;
 #include "triangle.h"
 #include <hjw_function_triangle.h>
 
+triangulateio in, out;
+
 // the way the mesh is rendered
 enum EnumDisplayMode 
 { 
@@ -268,6 +270,12 @@ void DisplayFunc()
 
 	//DrawStrokePoints();
 	DrawStrokePoints_Sample();
+	if (leftUp&& stroke_flag)
+	{
+		triangulateio_init(strokepts_sam_saved, in, out);
+		triangulate("pzen", &in, &out, (triangulateio *)NULL);
+		triangulateio_free(in, out);
+	}
 
 	glutSwapBuffers();
 }
@@ -464,6 +472,7 @@ void DrawStrokePoints_Sample()
 			glVertex2f(v2.X(), v2.Y());
 			glEnd();
 			
+			cout << "v1= " << v1 << ", v2= " << v2 << endl;
 
 			v1 = strokePoints[i];
 			//把采样的点存进strokepts_sampled
@@ -473,15 +482,16 @@ void DrawStrokePoints_Sample()
 			}
 
 			j++;
-			//cout << "v1= " << v1 << ", v2= " << v2 << endl;
 			//检查相交
 			for (int k = 1; k + 2 < strokepts_sampled.size() ; k++)
 			{
-				cout << "k=" << k << "  strokepts_sampled.size()=" << strokepts_sampled.size() << endl;
+				//cout << "k=" << k << "  strokepts_sampled.size()=" << strokepts_sampled.size() << endl;
 				if (segment_intersection(strokepts_sampled[strokepts_sampled.size()-2], strokepts_sampled[strokepts_sampled.size()-1], strokepts_sampled[k], strokepts_sampled[k - 1]))
 				{
 					intersect_flag = true;
 					cout << "find Intersecting segments!!! draw again! (segment["<< strokepts_sampled.size() - 2<<", "<< strokepts_sampled.size() - 1<<"] and segment[" << k << ", " << k - 1 << "])" << endl;
+					printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", strokepts_sampled.size() - 2, strokepts_sampled[strokepts_sampled.size() - 2].X(), strokepts_sampled[strokepts_sampled.size() - 2].Y(), strokepts_sampled.size() - 1, strokepts_sampled[strokepts_sampled.size() - 1].X(), strokepts_sampled[strokepts_sampled.size() - 1].Y());
+					printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", k, strokepts_sampled[k].X(), strokepts_sampled[k].Y(), k - 1, strokepts_sampled[k - 1].X(), strokepts_sampled[k - 1].Y());
 					break;
 				}
 
@@ -489,10 +499,10 @@ void DrawStrokePoints_Sample()
 		}
 		
 	}
-	/*for (int i = 0; i < strokepts_sampled.size(); ++i)
+	for (int i = 0; i < strokepts_sampled.size(); ++i)
 	{
 		printf("strokepts_sampled[%d]:%f,%f \n ", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
-	}*/
+	}
 	if (leftUp)
 	{
 		float d= distanceofstrokePoints(strokepts_sampled.size() - 1, strokePoints[strokePoints.size() - 1], strokepts_sampled[strokepts_sampled.size()-1]);
@@ -525,11 +535,11 @@ void DrawStrokePoints_Sample()
 			for (int i = 0; i < strokepts_sampled.size(); ++i)
 			{
 				printf("\n strokepts_sampled[%d]:%f,%f", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
-			}*/
+			}
 			for (int i = 0; i < strokepts_sam_saved.size(); ++i)
 			{
-				printf("\n strokepts_sam_saved[%d]:%f,%f", i, strokepts_sam_saved[i].X(), strokepts_sam_saved[i].Y());
-			}
+				printf(" strokepts_sam_saved[%d]:%f,%f \n", i, strokepts_sam_saved[i].X(), strokepts_sam_saved[i].Y());
+			}*/
 			
 		}
 		else
