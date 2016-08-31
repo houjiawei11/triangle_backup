@@ -12,7 +12,7 @@ using namespace std;
 #include "triangle.h"
 #include <hjw_function_triangle.h>
 
-triangulateio in, out;
+triangulateio in, out, vorout;
 
 // the way the mesh is rendered
 enum EnumDisplayMode 
@@ -45,7 +45,10 @@ vector<Vector2f> strokepts_sampled;
 vector<Vector2f> strokepts_sam_saved;
 Teddy teddy;
 bool stroke_flag = 0;
+bool sample_flag = 0;
 bool intersect_flag = false;
+bool triangulate_flag = false;
+
 
 
 // editing mode
@@ -78,6 +81,9 @@ void DrawSmoothShaded();
 void DrawColorSmoothShaded();
 void DrawStrokePoints();
 void DrawStrokePoints_Sample();
+void DrawSampledPoints();
+void StrokePoints_Sample();
+void drawtriangle(vector<Vector2f>, triangulateio &);
 
 // input related glut functions
 void KeyboardFunc(unsigned char ch, int x, int y);
@@ -268,13 +274,21 @@ void DisplayFunc()
 			break;
 	}
 
-	//DrawStrokePoints();
-	DrawStrokePoints_Sample();
-	if (leftUp&& stroke_flag)
+	if (!stroke_flag)
 	{
-		triangulateio_init(strokepts_sam_saved, in, out);
-		triangulate("pzen", &in, &out, (triangulateio *)NULL);
-		triangulateio_free(in, out);
+		DrawStrokePoints();
+
+	}
+	else
+	{
+		DrawSampledPoints();
+	}
+	//DrawStrokePoints_Sample();
+	if (leftUp&&stroke_flag&&triangulate_flag)
+	{
+
+		drawtriangle(strokepts_sam_saved, out);
+
 	}
 
 	glutSwapBuffers();
@@ -472,7 +486,7 @@ void DrawStrokePoints_Sample()
 			glVertex2f(v2.X(), v2.Y());
 			glEnd();
 			
-			cout << "v1= " << v1 << ", v2= " << v2 << endl;
+			//cout << "v1= " << v1 << ", v2= " << v2 << endl;
 
 			v1 = strokePoints[i];
 			//把采样的点存进strokepts_sampled
@@ -499,20 +513,33 @@ void DrawStrokePoints_Sample()
 		}
 		
 	}
-	for (int i = 0; i < strokepts_sampled.size(); ++i)
-	{
-		printf("strokepts_sampled[%d]:%f,%f \n ", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
-	}
+	//for (int i = 0; i < strokepts_sampled.size(); ++i)
+	//{
+	//	printf("strokepts_sampled[%d]:%f,%f \n ", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
+	//}
 	if (leftUp)
 	{
 		float d= distanceofstrokePoints(strokepts_sampled.size() - 1, strokePoints[strokePoints.size() - 1], strokepts_sampled[strokepts_sampled.size()-1]);
 		if (d >= 10.0)
 		{
-		strokepts_sampled.push_back(strokePoints[strokePoints.size() - 1]);
-		glBegin(GL_LINES);
-		glVertex2f(v1.X(), v1.Y());
-		glVertex2f(strokepts_sampled.back().X(), strokepts_sampled.back().Y());
-		glEnd();
+			strokepts_sampled.push_back(strokePoints[strokePoints.size() - 1]);
+			glBegin(GL_LINES);
+			glVertex2f(v1.X(), v1.Y());
+			glVertex2f(strokepts_sampled.back().X(), strokepts_sampled.back().Y());
+			glEnd();
+			for (int k = 1; k + 2 < strokepts_sampled.size(); k++)
+			{
+				//cout << "k=" << k << "  strokepts_sampled.size()=" << strokepts_sampled.size() << endl;
+				if (segment_intersection(strokepts_sampled[strokepts_sampled.size() - 2], strokepts_sampled[strokepts_sampled.size() - 1], strokepts_sampled[k], strokepts_sampled[k - 1]))
+				{
+					intersect_flag = true;
+					cout << "find Intersecting segments!!! draw again! (segment[" << strokepts_sampled.size() - 2 << ", " << strokepts_sampled.size() - 1 << "] and segment[" << k << ", " << k - 1 << "])" << endl;
+					printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", strokepts_sampled.size() - 2, strokepts_sampled[strokepts_sampled.size() - 2].X(), strokepts_sampled[strokepts_sampled.size() - 2].Y(), strokepts_sampled.size() - 1, strokepts_sampled[strokepts_sampled.size() - 1].X(), strokepts_sampled[strokepts_sampled.size() - 1].Y());
+					printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", k, strokepts_sampled[k].X(), strokepts_sampled[k].Y(), k - 1, strokepts_sampled[k - 1].X(), strokepts_sampled[k - 1].Y());
+					break;
+				}
+
+			}
 		}
 		d= distanceofstrokePoints(strokepts_sampled.size() - 1, strokepts_sampled[strokepts_sampled.size() - 1], strokepts_sampled[0]);
 		if (d <= sample_segment)
@@ -551,6 +578,176 @@ void DrawStrokePoints_Sample()
 	
 
 	
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+}
+
+void drawtriangle(vector<Vector2f> strokepts, triangulateio &out)
+{
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0, winWidth, 0, winHeight);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glLineWidth(3.0f);
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+	glColor3f(0.4f, 0.2f, 0.6f);
+	//for (int i = 0; i < out.numberoftriangles*3; i++)
+	//{
+	//	cout<<"out.trianglelist["<<i<<"]:" << out.trianglelist[i] << endl;
+	//}
+
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glBegin(GL_LINES);
+	for (int i = 0; i < out.numberofedges; i++)
+	{
+		cout << "out.edgelist[" << i << "]: " << out.edgelist[i] << endl;
+		Vector2f& v1 = strokepts[out.edgelist[i * 2]];
+		Vector2f& v2 = strokepts[out.edgelist[i * 2 + 1]];
+		cout << "v1= " << v1 << ", v2= " << v2 << endl;
+		glVertex2f(v1.X(), v1.Y());
+		glVertex2f(v2.X(), v2.Y());
+	}
+
+	glEnd();
+
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+}
+
+void StrokePoints_Sample()
+{
+	Vector2f v1 = strokePoints[0];
+	int j = 0;
+
+	if (strokepts_sampled.size() == 0)
+	{
+		strokepts_sampled.push_back(v1);
+		intersect_flag = false;
+	}
+	for (int i = 1; i < strokePoints.size(); ++i)
+	{
+		if (intersect_flag)break;
+		//printf("\n strokePoints[i]:%f,%f", strokePoints[i].X(), strokePoints[i].Y());
+		if (distanceofstrokePoints(i, strokePoints[i], v1) >= sample_segment)
+		{
+			v1 = strokePoints[i];
+			//把采样的点存进strokepts_sampled
+			//if (strokepts_sampled.back().X() != v1.X() && strokepts_sampled.back().Y() != v1.Y() && strokepts_sampled.size() - 1 <= j)
+			{
+				strokepts_sampled.push_back(v1);
+			}
+
+			j++;
+			//检查相交
+			for (int k = 1; k + 2 < strokepts_sampled.size(); k++)
+			{
+				//cout << "k=" << k << "  strokepts_sampled.size()=" << strokepts_sampled.size() << endl;
+				if (segment_intersection(strokepts_sampled[strokepts_sampled.size() - 2], strokepts_sampled[strokepts_sampled.size() - 1], strokepts_sampled[k], strokepts_sampled[k - 1]))
+				{
+					intersect_flag = true;
+					cout << "find Intersecting segments!!! draw again! (segment[" << strokepts_sampled.size() - 2 << ", " << strokepts_sampled.size() - 1 << "] and segment[" << k << ", " << k - 1 << "])" << endl;
+					printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", strokepts_sampled.size() - 2, strokepts_sampled[strokepts_sampled.size() - 2].X(), strokepts_sampled[strokepts_sampled.size() - 2].Y(), strokepts_sampled.size() - 1, strokepts_sampled[strokepts_sampled.size() - 1].X(), strokepts_sampled[strokepts_sampled.size() - 1].Y());
+					printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", k, strokepts_sampled[k].X(), strokepts_sampled[k].Y(), k - 1, strokepts_sampled[k - 1].X(), strokepts_sampled[k - 1].Y());
+					break;
+				}
+
+			}
+		}
+
+	}
+	
+	
+	float d = distanceofstrokePoints(strokepts_sampled.size() - 1, strokePoints[strokePoints.size() - 1], strokepts_sampled[strokepts_sampled.size() - 1]);
+	if (d >= 10.0)
+	{
+		strokepts_sampled.push_back(strokePoints[strokePoints.size() - 1]);
+			
+		for (int k = 1; k + 2 < strokepts_sampled.size(); k++)
+		{
+			//cout << "k=" << k << "  strokepts_sampled.size()=" << strokepts_sampled.size() << endl;
+			if (segment_intersection(strokepts_sampled[strokepts_sampled.size() - 2], strokepts_sampled[strokepts_sampled.size() - 1], strokepts_sampled[k], strokepts_sampled[k - 1]))
+			{
+				intersect_flag = true;
+				cout << "find Intersecting segments!!! draw again! (segment[" << strokepts_sampled.size() - 2 << ", " << strokepts_sampled.size() - 1 << "] and segment[" << k << ", " << k - 1 << "])" << endl;
+				printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", strokepts_sampled.size() - 2, strokepts_sampled[strokepts_sampled.size() - 2].X(), strokepts_sampled[strokepts_sampled.size() - 2].Y(), strokepts_sampled.size() - 1, strokepts_sampled[strokepts_sampled.size() - 1].X(), strokepts_sampled[strokepts_sampled.size() - 1].Y());
+				printf("\n strokepts_sampled[%d]:%f,%f, strokepts_sampled[%d]:%f,%f", k, strokepts_sampled[k].X(), strokepts_sampled[k].Y(), k - 1, strokepts_sampled[k - 1].X(), strokepts_sampled[k - 1].Y());
+				break;
+			}
+
+		}
+	}
+	d = distanceofstrokePoints(strokepts_sampled.size() - 1, strokepts_sampled[strokepts_sampled.size() - 1], strokepts_sampled[0]);
+	if (d <= sample_segment)
+	{
+
+			
+		//第一次画圈或是上次画圈不合格，即strokepts_sam_saved未使用：把strokepts_sampled赋给strokepts_sam_saved
+		if (!stroke_flag && !intersect_flag)
+		{
+			strokepts_sam_saved.clear();
+			strokepts_sam_saved = strokepts_sampled;
+			stroke_flag = 1;
+
+		}
+
+	}
+	else
+	{
+		printf("\n error!!!\n Please draw again to make the distance between the last point and the first point closer (less than 20px)!\n");
+	}
+
+	//for (int i = 0; i < strokepts_sampled.size(); ++i)
+	//{
+	//	printf("strokepts_sampled[%d]:%f,%f \n ", i, strokepts_sampled[i].X(), strokepts_sampled[i].Y());
+	//}
+
+}
+void DrawSampledPoints()
+{
+	if (strokepts_sam_saved.size() < 3) return;
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0, winWidth, 0, winHeight);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glLineWidth(3.0f);
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+	glColor3f(0.1f, 0.8f, 0.0f);
+	glBegin(GL_LINES);
+	for (int i = 0; i < strokepts_sam_saved.size() - 1; ++i)
+	{
+		Vector2f& v1 = strokepts_sam_saved[i];
+		Vector2f& v2 = strokepts_sam_saved[i + 1];
+		glVertex2f(v1.X(), v1.Y());
+		glVertex2f(v2.X(), v2.Y());
+	}
+	glEnd();
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -611,6 +808,30 @@ void MouseFunc(int button, int state, int x, int y)
 		strokepts_sampled.clear();
 		//intersect_flag = false;
 	}
+	else if (state == GLUT_UP && currentMode == Sketching)
+	{
+		if (stroke_flag)
+		{
+			cout << "stroke_flag=true" << endl;
+			if (!triangulate_flag)
+			{
+				triangulateio_init(strokepts_sam_saved, in, out);
+				triangulate("pszen", &in, &out, &vorout);
+				triangulateio_free_in(in);
+				triangulate_flag = 1;
+			}
+			
+		}
+		else
+		{
+			StrokePoints_Sample();
+			sample_flag = true;
+
+		}
+
+	}
+
+
 
 	glutPostRedisplay();
 }
@@ -681,6 +902,10 @@ void main(int argc, char **argv)
 
 
 	glutMainLoop();
+
+	
+	triangulateio_free_out(out);
+	triangulate_flag = 0;
 }
 
 

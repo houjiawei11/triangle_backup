@@ -25,21 +25,8 @@ bool near_equal(float a, float b)
 }
 bool segment_intersection(Vector2f v11, Vector2f v12, Vector2f v21, Vector2f v22)
 {
-	cout << "two segment: " << v11.X() << " , " << v11.Y() << ", " << v12.X() << " , " << v12.Y() << "; " << endl << v21.X() << " , " << v21.Y() << ", " << v22.X() << " , " << v22.Y() << endl;
-	//if (v12.X()<v11.X())
-	//{
-	//	Vector2f vtemp = v12;
-	//	v12 = v11;
-	//	v11 = vtemp;
-	//}
-	//if (v22.X()<v21.X())
-	//{
-	//	Vector2f vtemp = v22;
-	//	v22 = v21;
-	//	v21 = vtemp;
-	//}
-	//cout << "orderd by x: two segment: " << v11.X() << " , " << v11.Y() << ", " << v12.X() << " , " << v12.Y() << "; " << endl << v21.X() << " , " << v21.Y() << ", " << v22.X() << " , " << v22.Y() << endl;
-
+	//cout << "two segment: " << v11.X() << " , " << v11.Y() << ", " << v12.X() << " , " << v12.Y() << "; " << endl << v21.X() << " , " << v21.Y() << ", " << v22.X() << " , " << v22.Y() << endl;
+	
 	float a1, b1, a2, b2;
 	a1 = (v11.Y() - v12.Y()) / (v11.X() - v12.X());
 	b1 = v12.Y() - v12.X()*a1;
@@ -54,12 +41,14 @@ bool segment_intersection(Vector2f v11, Vector2f v12, Vector2f v21, Vector2f v22
 	//if (near_equal(y_r1, y_r2))
 	if(y_r1==y_r2)
 	{
-		if ((x_r <= v12.X() && x_r >= v11.X())|| (x_r <= v11.X() && x_r >= v12.X()))
+		bool r1 = (x_r <= v12.X() && x_r >= v11.X()) || (x_r <= v11.X() && x_r >= v12.X());
+		bool r2 = (x_r <= v22.X() && x_r >= v21.X()) || (x_r <= v21.X() && x_r >= v22.X());
+		if (r1&&r2)
 		{
 			cout << "a1= " << a1 << " b1= " << b1 << ", a2= " << a2 << " b2= " << b2 << endl;
 			cout << "x_r= " << x_r << ", y_r1= " << y_r1 << ", y_r2= " << y_r2 << endl;
 			cout << "orderd by x: two segment: " << v11.X() << " , " << v11.Y() << ", " << v12.X() << " , " << v12.Y() << "; " << endl << v21.X() << " , " << v21.Y() << ", " << v22.X() << " , " << v22.Y() << endl;
-
+			
 			return 1;
 		}
 		else
@@ -71,8 +60,6 @@ bool segment_intersection(Vector2f v11, Vector2f v12, Vector2f v21, Vector2f v22
 	}
 }
 
-
-//struct triangulateio in,  out, vorout;
 void triangulateio_init( vector<Vector2f> strokepts,  triangulateio& in,  triangulateio& out)
 {
 	int pts_num= strokepts.size();
@@ -94,7 +81,7 @@ void triangulateio_init( vector<Vector2f> strokepts,  triangulateio& in,  triang
 	in.pointmarkerlist = (int *)malloc(in.numberofpoints * sizeof(int));
 	for (int i = 0; i<pts_num; i++)
 	{
-		in.pointmarkerlist[i] = 0;
+		in.pointmarkerlist[i] = 2;
 	}
 
 	in.numberofsegments = pts_num;
@@ -110,8 +97,6 @@ void triangulateio_init( vector<Vector2f> strokepts,  triangulateio& in,  triang
 	//in.regionlist = (REAL *)NULL;
 	cout << "init in successd: pointlist, pointmarkerlist, segmentlist..." << endl;
 
-	//vorout=(struct triangulateio *) NULL;
-
 	//init out
 	out.pointlist = (REAL *)NULL;		//no N
 	out.numberofpointattributes = 0;
@@ -126,11 +111,15 @@ void triangulateio_init( vector<Vector2f> strokepts,  triangulateio& in,  triang
 	cout << "init out successed!" << endl;
 
 }
-void triangulateio_free(triangulateio &in, triangulateio &out)
+
+void triangulateio_free_in(triangulateio &in)
 {
 	free(in.pointlist);
 	free(in.pointmarkerlist);
 	free(in.segmentlist);
+}
+void triangulateio_free_out(triangulateio &out)
+{
 
 	free(out.pointlist);
 	free(out.pointmarkerlist);
